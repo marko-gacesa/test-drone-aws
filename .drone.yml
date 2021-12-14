@@ -1,0 +1,13 @@
+kind: pipeline
+type: aws
+name: default
+
+steps:
+  - name: env
+    image: alpine:latest
+    commands:
+      - env | sort
+  - name: build
+    image: golang:latest
+    commands:
+      - go build
