@@ -2,6 +2,9 @@ kind: pipeline
 type: aws
 name: default
 
+pool:
+  use: ubuntu
+
 steps:
   - name: env
     image: alpine:latest
