@@ -6,6 +6,9 @@ pool:
   use: ubuntu
 
 steps:
+  - name: envhost
+    commands:
+      - env | sort
   - name: env
     image: alpine:latest
     commands:
