@@ -6,14 +6,47 @@ pool:
   use: ubuntu
 
 steps:
-  - name: envhost
+  - name: vm status
     commands:
+      - echo "-------------------"
       - env | sort
-  - name: env
-    image: alpine:latest
+      - echo "-------------------"
+      - docker ps -a
+      - echo "-------------------"
+      - cat /var/log/cloud-init-output.log
+      - echo "-------------------"
+      - hostname -f
+      - echo "-------------------"
+      - ifconfig
+      - echo "-------------------"
+    environment:
+      secret1:
+        from_secret: tajna
+      secret2:
+        from_secret: tajna_env
+  - name: ping redis
+    image: redis
     commands:
-      - env | sort
+      - redis-cli -h red ping
+#  - name: test
+#    image: golang:latest
+#    volumes:
+#      - name: gomodcache
+#        path: /go/pkg/mod
+#    commands:
+#      - go test ./...
   - name: build
     image: golang:latest
+#    volumes:
+#      - name: gomodcache
+#        path: /go/pkg/mod
     commands:
       - go build
+
+services:
+  - name: redis
+    image: redis
+
+#volumes:
+#  - name: gomodcache
+#    temp: {}
