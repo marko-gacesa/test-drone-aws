@@ -28,18 +28,18 @@ steps:
     image: redis
     commands:
       - redis-cli -h red ping
-#  - name: test
-#    image: golang:latest
-#    volumes:
-#      - name: gomodcache
-#        path: /go/pkg/mod
-#    commands:
-#      - go test ./...
+  - name: test
+    image: golang:latest
+    volumes:
+      - name: gomodcache
+        path: /go/pkg/mod
+    commands:
+      - go test ./...
   - name: build
     image: golang:latest
-#    volumes:
-#      - name: gomodcache
-#        path: /go/pkg/mod
+    volumes:
+      - name: gomodcache
+        path: /go/pkg/mod
     commands:
       - go build
 
@@ -47,6 +47,6 @@ services:
   - name: redis
     image: redis
 
-#volumes:
-#  - name: gomodcache
-#    temp: {}
+volumes:
+  - name: gomodcache
+    temp: {}
