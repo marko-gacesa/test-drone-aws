@@ -35,13 +35,25 @@ steps:
         path: /go/pkg/mod
     commands:
       - go test ./...
+      - ls -la
   - name: build
     image: golang:latest
     volumes:
       - name: gomodcache
         path: /go/pkg/mod
     commands:
-      - go build
+      - go build -o out
+      - ls -la
+  - name: export
+    volumes:
+      - name: home
+        path: /output
+    commands:
+      - cp out /output
+      - ls -la /output
+  - name: check
+    commands:
+      - ls -la /root
 
 services:
   - name: redis
@@ -50,3 +62,5 @@ services:
 volumes:
   - name: gomodcache
     temp: {}
+  - name: home
+    host: { "path": "/root" }
