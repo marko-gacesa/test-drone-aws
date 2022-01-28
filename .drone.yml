@@ -6,61 +6,177 @@ pool:
   use: ubuntu
 
 steps:
-  - name: vm status
+  # show host machine status
+#  - name: vm status
+#    commands:
+#      #- cat /var/log/cloud-init-output.log
+#      - hostname -f
+#      - ifconfig
+
+  # test secrets
+  - name: env
     commands:
-      - echo "-------------------"
-      - env | sort
-      - echo "-------------------"
-      - docker ps -a
-      - echo "-------------------"
-      - cat /var/log/cloud-init-output.log
-      - echo "-------------------"
-      - hostname -f
-      - echo "-------------------"
-      - ifconfig
-      - echo "-------------------"
+      - env | grep -i PLUGIN_NAME=MARKO
+      - env | grep -i SECRET1=******
+      #- env | grep SECRET2=******
+    settings:
+      name: marko
     environment:
       secret1:
+        # must define a secret with name 'tajna' in drone DB
         from_secret: tajna
       secret2:
+        # must set the runner's env var: DRONE_RUNNER_SECRETS=tajna_env:blahblah
         from_secret: tajna_env
+
+  # test entry point on a private image
+  # must define a secret with name 'dockerconfigjson' in drone DB with pulls=true
+#  - name: collector
+#    image: markogacesa/test:1.2.0
+#    entrypoint: ['ls', '-la', '/bin/drone-metrics-collector']
+
+  # check if redis port is bound to the host machine
+  # redis1: host 6060, container 6379
+  # redis2: host 6379, container 6379
+  - name: ping host redis
+    commands:
+      - sleep 5
+      - netstat -plnt
+      - apt -y update
+      - apt-get install -y redis-tools
+      - redis-cli -h localhost -p 6060 ping
+      - redis-cli -h localhost -p 6379 ping
+
+  # view docker containers and network
+  - name: view docker stuff
+    commands:
+      - docker network ls | expand
+      - docker ps -a | expand
+      - docker images | expand
+
+  # check if redis is available using redis image and redis-cli command
   - name: ping redis
     image: redis
     commands:
-      - redis-cli -h red ping
-  - name: test
-    image: golang:latest
-    volumes:
-      - name: gomodcache
-        path: /go/pkg/mod
+      - cat /etc/hosts
+      - apt -y update
+      - apt-get install -y net-tools bind9-host
+      - netstat -plnt
+      - host redis2
+      - redis-cli -h redis2 ping
+      # redis1 uses host network and therefore it is not accessible
+
+  # test a plugin and passing parameters to it through settings
+  - name: download
+    image: plugins/download
+    settings:
+      source: https://github.com/drone/drone-cli/releases/download/v0.8.5/drone_linux_amd64.tar.gz
+
+  # test if download plugin succeeded
+  - name: download test
     commands:
-      - go test ./...
-      - ls -la
-  - name: build
-    image: golang:latest
-    volumes:
-      - name: gomodcache
-        path: /go/pkg/mod
+      - if [ -f drone_linux_amd64.tar.gz  ]; then echo "the downloaded file is here"; else exit 1; fi
+      - file drone_linux_amd64.tar.gz
+
+  # test volume empty dir volume used for go modules
+#  - name: test
+#    image: golang:1
+#    volumes:
+#      - name: gomodcache
+#        path: /go/pkg/mod
+#    commands:
+#      - go test ./...
+#      - ls -la
+
+  # test volume empty dir volume used for go modules, test host volume
+#  - name: build
+#    image: golang:1
+#    volumes:
+#      - name: gomodcache
+#        path: /go/pkg/mod
+#      - name: home
+#        path: /output
+#    commands:
+#      - go build -o out
+#      - ls -la
+#      - cp out /output
+#      - ls -la /output
+
+  # verify if the host volume test succeeded: the "out" file should be present on the host
+#  - name: check
+#    commands:
+#      - ls -la /root
+
+  # list containers
+  - name: containers
     commands:
-      - go build -o out
-      - ls -la
-  - name: export
-    volumes:
-      - name: home
-        path: /output
+      - docker ps -a | expand
+      - docker images | expand
+
+  # test of err_policy
+  - name: ignore-fail
+    failure: ignore
     commands:
-      - cp out /output
-      - ls -la /output
-  - name: check
+      - dslkfjadskl
+
+  # test when status "failure"
+  - name: when-failed
+    when:
+      status:
+        - failure
     commands:
-      - ls -la /root
+      - echo "************************\n***** BUILD FAILED *****\n************************"
+
+  # test when status "success"
+  - name: when-success
+    when:
+      status:
+        - success
+    commands:
+      - echo "***************************\n***** BUILD SUCCEEDED *****\n***************************"
+
+  # test when status "success" or "failure"
+  - name: when-always
+    when:
+      status:
+        - success
+        - failure
+    commands:
+      - echo "***************************\n***** ALWAYS EXECUTED *****\n***************************"
+
+  # test when branch "main"
+  - name: branch-main
+    when:
+      branch:
+        - main
+    commands:
+      - echo 'main' branch
+
+  # test when branch "master"
+  - name: branch-master
+    when:
+      branch:
+        - master
+    commands:
+      - echo 'master' branch
 
 services:
-  - name: redis
+  # redis1 is accessible on the host machine as localhost:6060
+  - name: redis1
     image: redis
+    network_mode: host
+
+  # redis2 is accessible on the host machine as localhost:6379 (default port)
+  - name: redis2
+    image: redis
+    port_bindings:
+      6060: "6379"
 
 volumes:
   - name: gomodcache
     temp: {}
   - name: home
     host: { "path": "/root" }
+
+image_pull_secrets:
+  - dockerconfigjson
